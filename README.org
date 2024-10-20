@@ -1,0 +1,11 @@
+#+TITLE: Nix Organized with Emacs!
+#+AUTHOR: Kjartan Másson
+
+Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
+
+* Flake
+#+begin_src nix :tangle flake.nix
+  #
+  # This file is auto-generated from "README.org"
+  #
+#+end_src
