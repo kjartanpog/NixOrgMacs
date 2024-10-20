@@ -1,7 +1,14 @@
 #+TITLE: Nix Organized with Emacs!
 #+AUTHOR: Kjartan Másson
 
+
 Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
+
+| Class              | Name  |
+|--------------------+-------|
+| 🪟 Window Manager | [[https://www.gnome.org/][Gnome]] |
+| 📝 Text Editor    | [[https://www.gnu.org/software/emacs/][Emacs]] |
+
 
 * Flake
 #+begin_src nix :tangle flake.nix
