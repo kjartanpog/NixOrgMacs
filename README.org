@@ -1,5 +1,8 @@
+#+STARTUP: hideblocks
 #+TITLE: Nix Organized with Emacs!
 #+AUTHOR: Kjartan Másson
+#+STARTUP: showeverything
+#+OPTIONS: toc:2
 
 #+begin_html
 <p align="center">
@@ -13,7 +16,6 @@
 <h1 align="center">NixOrgMacs</h1>
 #+end_html
 
-
 Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
 
 | Class              | Name        |
@@ -23,10 +25,14 @@ Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
 | 🌐 Web Browser    | [[https://www.mozilla.org/en-US/firefox/new/][Firefox]]     |
 | 📨 Email          | [[https://www.thunderbird.net/en-US/][Thunderbird]] |
 
+* Table of Contents :TOC:
+- [[#flake][Flake]]
+- [[#systems][Systems]]
+  - [[#thinkpad-z13-gen2][Thinkpad Z13 Gen2]]
 
 * Flake
 
-#+begin_src nix :tangle flake.nix
+#+begin_src nix :tangle ./NixOS/flake.nix
   #
   # This file is auto-generated from "README.org"
   #
