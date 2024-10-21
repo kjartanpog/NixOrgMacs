@@ -26,7 +26,7 @@ Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
 
 * Flake
 
-#+begin_src nix :tangle flake.nix
+#+begin_src nix :tangle ./NixOS/flake.nix
   #
   # This file is auto-generated from "README.org"
   #
