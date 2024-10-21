@@ -16,6 +16,14 @@
 <h1 align="center">NixOrgMacs</h1>
 #+end_html
 
++ What is this?
+
+  My entire operating system configuration written in a single file.
+
++ But why?
+
+  Funny, but also a great opportunity to learn Emacs org-mode.
+
 Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
 
 | Class              | Name        |
