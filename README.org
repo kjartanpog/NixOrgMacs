@@ -2,7 +2,7 @@
 #+TITLE: Nix Organized with Emacs!
 #+AUTHOR: Kjartan Másson
 #+STARTUP: showeverything
-#+OPTIONS: toc:2
+#+OPTIONS: toc:3
 
 #+begin_html
 <p align="center">
@@ -20,27 +20,43 @@
 
   My entire operating system configuration written in a single file.
 
++ Which file is it?
+
+  You're reading it right now!
+
 + But why?
 
-  Funny, but also a great opportunity to learn Emacs org-mode.
-
+  Funny & stupid, but also a great opportunity to learn Emacs org-mode.
+  
 Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
 
 | Class              | Name        |
 |--------------------+-------------|
 | 🪟 Window Manager | [[https://www.gnome.org/][Gnome]]       |
 | 📝 Text Editor    | [[https://www.gnu.org/software/emacs/][Emacs]]       |
+| 🐚 Shell          | [[https://www.gnu.org/software/bash/][Bash]]        |
 | 🌐 Web Browser    | [[https://www.mozilla.org/en-US/firefox/new/][Firefox]]     |
 | 📨 Email          | [[https://www.thunderbird.net/en-US/][Thunderbird]] |
 
 * Table of Contents :TOC:
 - [[#flake][Flake]]
-- [[#systems][Systems]]
+- [[#hosts][Hosts]]
   - [[#thinkpad-z13-gen2][Thinkpad Z13 Gen2]]
+- [[#system-configuration][System Configuration]]
+  - [[#fonts][Fonts]]
+  - [[#gnome][Gnome]]
+  - [[#packages][Packages]]
+  - [[#users][Users]]
+  - [[#external-hardware][External Hardware]]
+  - [[#locale][Locale]]
+- [[#nixpkgs--overlays][nixpkgs & overlays]]
+- [[#home-configuration][Home Configuration]]
+  - [[#croggers][Croggers]]
+- [[#eof][EOF]]
 
 * Flake
 
-#+begin_src nix :tangle ./NixOS/flake.nix
+#+begin_src nix :tangle flake.nix
   #
   # This file is auto-generated from "README.org"
   #
@@ -76,7 +92,11 @@ Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
         url = "github:xremap/nix-flake";
       };
     };
+#+end_src
 
+* Hosts
+
+#+begin_src nix :tangle flake.nix
     outputs = { self, nixpkgs, nixos-cosmic, ... }@inputs:
       let
         system = "x86_64-linux";
@@ -85,30 +105,496 @@ Inspired by [[https://github.com/idlip/d-nix/tree/gol-d][d-nix]]
       in
         {
           nixosConfigurations = {
-            Z13 = nixpkgs.lib.nixosSystem {
-              specialArgs = {inherit inputs;};
-              modules = [
-                inputs.home-manager.nixosModules.default
-                ./hosts/Z13/configuration.nix
-                ./overlay.nix
-                { nix.registry.nixpkgs.flake = nixpkgs; }
-                {
-                  nix.settings = {
-                    substituters = [
-                      "https://cache.nixos.org"
-                    ];
-                    trusted-public-keys = [
-                      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-                    ];
-                  };
-                }
-              ];
-            };
+#+end_src
+
+** Thinkpad Z13 Gen2
+
+#+begin_src nix :tangle flake.nix
+  Z13 = nixpkgs.lib.nixosSystem {
+    specialArgs = {inherit inputs;};
+    modules = [
+      inputs.home-manager.nixosModules.default
+      ./NixOS/hosts/Z13/default.nix
+      { nix.registry.nixpkgs.flake = nixpkgs; }
+      {
+        nix.settings = {
+          substituters = [
+            "https://cache.nixos.org"
+          ];
+          trusted-public-keys = [
+            "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+          ];
+        };
+      }
+    ];
+  };
+#+end_src
+
+#+begin_src nix :tangle ./NixOS/hosts/Z13/default.nix
+  #
+  # This file is auto-generated from "README.org"
+  #
+  { config, pkgs, lib, modulesPath, ... }:
+
+  {
+    imports = [
+      (modulesPath + "/installer/scan/not-detected.nix")
+      ../../configuration.nix
+      ../../hardware-configuration.nix
+    ];
+
+    networking.hostName = "Z13";
+
+
+    # Attempt to fix Alsa issues
+    # (From nix-hardware)
+    # environment.etc."asound.conf".source = ./asound.conf;
+    boot.initrd.availableKernelModules = [ "nvme" "xhci_pci" "thunderbolt" "usb_storage" "sd_mod" ];
+  boot.initrd.kernelModules = [ ];
+  # boot.kernelPackages = pkgs.linuxPackages_6_9;
+  # boot.kernelPackages = pkgs.linuxPackages_xanmod_latest;
+  boot.kernelPackages = pkgs.linuxPackages_latest;
+  boot.kernelModules = [ "kvm-amd" ];
+  # boot.kernelParams = [ "amd_pstate=guided" ];
+  boot.kernelParams = [ "amd_pstate=active" ];
+  boot.extraModulePackages = [ ];
+
+
+  fileSystems."/" =
+    { device = "/dev/disk/by-uuid/d8ed70d3-b853-41ff-98ca-de42ddae104b";
+      fsType = "ext4";
+    };
+
+  boot.initrd.luks.devices."luks-ef64ea49-a36c-4421-b169-92643f04df9f".device = "/dev/disk/by-uuid/ef64ea49-a36c-4421-b169-92643f04df9f";
+
+  fileSystems."/boot" =
+    { device = "/dev/disk/by-uuid/DF26-4A0E";
+      fsType = "vfat";
+      options = [ "fmask=0022" "dmask=0022" ];
+    };
+
+  swapDevices = [ ];
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+  # load amdgpu kernelModule in stage 1. Can fix lower resolution in boot screen during initramfs phase .
+  hardware.amdgpu.initrd.enable = true;
+
+  # modesetting - video driver for framebuffer device
+  services.xserver.videoDrivers = lib.mkDefault [ "modesetting" ];
+
+  # Enable hardware accelerated graphics drivers
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      # amdvlk # AMD Open Source Driver for Vulkan®
+      # libvdpau-va-gl # VDPAU driver with OpenGL/VAAPI backend. H.264 only.
+    ];
+    extraPackages32 = with pkgs; [
+      # driversi686Linux.amdvlk
+      # driversi686Linux.libvdpau-va-gl # VDPAU driver with OpenGL/VAAPI backend. H.264 only.
+    ];
+  };
+
+  # OpenCL parallel computing API
+  hardware.amdgpu.opencl.enable = true;
+  environment.systemPackages = with pkgs; [
+    clinfo
+  ];
+
+  environment.sessionVariables = {
+    # QT_WAYLAND_DECORATION = "gnome";
+    # QT_QPA_PLATFORM = "wayland";
+    # VAAPI and VDPAU config for accelerated video.
+    # See https://wiki.archlinux.org/index.php/Hardware_video_acceleration
+    VDPAU_DRIVER = "radeonsi";
+    # LIBVA_DRIVER_NAME = "radeonsi";
+  };
+  }
+#+end_src
+
+* System Configuration
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  #
+  # This file is auto-generated from "README.org"
+  #
+  { config, lib, pkgs, inputs, ... }:
+
+  {
+    hardware.uinput.enable = true;
+    hardware.keyboard.qmk.enable = true;
+    environment.systemPackages = with pkgs; [ via ];
+    services.udev.packages = with pkgs; [ via ];
+
+    environment.systemPackages = [
+      (
+        pkgs.alpaca.override {
+          ollama = pkgs.ollama-rocm;
+        }
+      )
+    ];
+
+    services.ollama = {
+      enable = true;
+      acceleration = "rocm";
+      rocmOverrideGfx = "11.0.2";
+      loadModels = [
+        "llama3.1:8b"
+      ];
+      environmentVariables = {
+        OLLAMA_KEEP_ALIVE = "3m";
+      };
+    };
+
+    environment.etc."programs.sqlite".source = inputs.programsdb.packages.${pkgs.system}.programs-sqlite;
+    programs.command-not-found.dbPath = "/etc/programs.sqlite";
+
+    boot.plymouth = {
+      enable = true;
+    };
+
+    services.flatpak.enable = true;
+
+    nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+
+    programs.steam = {
+      enable = true;
+      remotePlay.openFirewall = true; # Open ports in the firewall for Steam Remote Play
+      dedicatedServer.openFirewall = true; # Open ports in the firewall for Source Dedicated Server
+      localNetworkGameTransfers.openFirewall = true; # Open ports in the firewall for Steam Local Network Game Transfers
+    };
+
+    # Enable the Flakes feature and the accompanying new nix command-line tool
+    nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+    # Linux Vendor Firmware Service
+    services.fwupd.enable = true;
+
+    # Bootloader.
+    boot.loader.systemd-boot.enable = true;
+    boot.loader.efi.canTouchEfiVariables = true;
+
+    # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+
+    # Enable networking
+    networking.networkmanager.enable = true;
+    networking.useDHCP = lib.mkDefault true;
+
+    # Enable the X11 windowing system.
+    services.xserver.enable = true;
+
+    # Enable CUPS to print documents.
+    services.printing.enable = true;
+
+    # Enable sound with pipewire.
+    security.rtkit.enable = true;
+    # hardware.pulseaudio.enable = true;
+    hardware.pulseaudio.enable = false;
+    services.pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      pulse.enable = true;
+    };
+  # This should trigger background application showing in Gnome for non-Flatpak applications
+  xdg.portal.xdgOpenUsePortal = true;
+#+end_src
+
+** Fonts
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  fonts = {
+    packages = with pkgs; [
+      inter
+      iosevka-comfy.comfy
+      (nerdfonts.override { fonts = [ "SourceCodePro" "Hasklig" "IBMPlexMono" ]; })
+    ];
+    fontconfig = {
+      localConf = ''
+        <match target="font">
+            <test qual="any" name="family"><string>Inter</string></test>
+            <!-- These are set with "prepend" so that applications which configure features don't get overridden -->
+            <edit name="fontfeatures" mode="prepend">
+                <string>tnum</string><!-- Tabular numbers -->
+                <string>frac</string><!-- Fractions -->
+                <string>zero</string><!-- Slashed Zero -->
+                <string>ss02</string><!-- Disambiguation -->
+            </edit>
+        </match>
+      '';
+    };
+  };
+#+end_src
+
+** Gnome
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  # Prefer native wayland over xwayland for supported nix packages
+  environment.sessionVariables.NIXOS_OZONE_WL = "1";
+
+  # Enable the GNOME Desktop Environment.
+  services.xserver.displayManager.gdm.enable = true;
+  services.xserver.desktopManager.gnome.enable = true;
+
+  imports = [
+    ./extensions.nix
+  ];
+
+  environment.gnome.excludePackages = (with pkgs; [
+    gnome-tour
+  ]) ++ (with pkgs; [
+    epiphany # web browser
+    geary # email reader
+    evince # document viewer
+    totem # video player
+    # gnome-system-monitor # system monitor
+    # gnome.gnome-contacts # contacts manager
+    # gnome.gnome-music # music player
+    yelp # help viewer
+  ]);
+
+  environment.systemPackages = with pkgs; [
+    gnome-epub-thumbnailer # Thumbnailer for EPub and MOBI books
+    resources # Monitor your system resources and processes
+    celluloid # Simple GTK frontend for the mpv video player
+    papers # The future gnome PDF viewer
+    nautilus-python # Nautilus Python plugin support
+    # turtle # Git plugin for Nautilus
+    gnome-network-displays
+    gnome-podcasts # Official Gnome podcast app
+  ];
+
+  nixpkgs.overlays = [
+    # GNOME 46: triple-buffering-v4-46
+    (final: prev: {
+      gnome = prev.gnome.overrideScope (gnomeFinal: gnomePrev: {
+        mutter = gnomePrev.mutter.overrideAttrs (old: {
+          src = pkgs.fetchFromGitLab  {
+            domain = "gitlab.gnome.org";
+            owner = "vanvugt";
+            repo = "mutter";
+            rev = "triple-buffering-v4-46";
+            hash = "sha256-nz1Enw1NjxLEF3JUG0qknJgf4328W/VvdMjJmoOEMYs=";
+          };
+        });
+      });
+    })
+  ];
+#+end_src
+
+*** Extensions
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  environment.systemPackages = with pkgs.gnomeExtensions; [
+    xremap
+    caffeine
+    appindicator
+    # rclone-manager
+    gsconnect
+    # peek-top-bar-on-fullscreen
+    # highlight-focus
+    unite
+    # paperwm
+    # dim-background-windows
+    pip-on-top
+  ];
+#+end_src
+
+** Packages
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  environment.systemPackages = with pkgs; [
+    protonvpn-gui
+    fx-cast-bridge
+    unzip
+    gpu-screen-recorder
+    gpu-screen-recorder-gtk
+    git
+  ];
+#+end_src
+
+** Users
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  users.users.kjartanm = {
+    isNormalUser = true;
+    description = "Kjartan Masson";
+    extraGroups = [ "networkmanager" "wheel" ];
+  };
+
+  # Needed for xremap
+  users.groups = {
+    uinput.members = [ "kjartanm" ];
+    input.members = [ "kjartanm" ];
+  };
+
+  home-manager = {
+    extraSpecialArgs = {inherit inputs;};
+    users = {
+      "kjartanm" = import ./home.nix;
+    };
+    useGlobalPkgs = true;
+    # useUserPackages = true;
+    backupFileExtension = "backup";
+  };
+#+end_src
+
+
+** External Hardware
+
+** Locale
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  # Set your time zone.
+  time.timeZone = "Atlantic/Reykjavik";
+
+  # Select internationalisation properties.
+  i18n.defaultLocale = "en_US.UTF-8";
+
+  i18n.extraLocaleSettings = {
+    LC_ADDRESS = "is_IS.UTF-8";
+    LC_IDENTIFICATION = "is_IS.UTF-8";
+    LC_MEASUREMENT = "is_IS.UTF-8";
+    LC_MONETARY = "is_IS.UTF-8";
+    LC_NAME = "is_IS.UTF-8";
+    LC_NUMERIC = "is_IS.UTF-8";
+    LC_PAPER = "is_IS.UTF-8";
+    LC_TELEPHONE = "is_IS.UTF-8";
+    LC_TIME = "is_IS.UTF-8";
+  };
+
+  # Configure keymap in X11
+  services.xserver.xkb = {
+    layout = "is";
+    variant = "";
+  };
+
+  # Configure console keymap
+  console.keyMap = "is-latin1";
+#+end_src
+
+* nixpkgs & overlays
+
+#+begin_src nix :tangle NixOS/configuration.nix
+  nixpkgs = {
+    overlays = [inputs.emacs-overlay.overlay];
+    config = {
+      allowUnfree = true;
+    };
+  };
+#+end_src
+
+* Home Configuration
+
+#+begin_src nix :tangle NixOS/home.nix
+  { inputs, pkgs, ... }:
+
+  {
+    programs.home-manager.enable = true;
+
+    home.username = "kjartanm";
+    home.homeDirectory = "/home/kjartanm";
+
+    home.sessionVariables = {
+      NIXOS_OZONE_WL = "1";
+      FLAKE = "/home/kjartanm/Nix";
+      DF = "/home/kjartanm/.dotfiles";
+      DOTFILES = "/home/kjartanm/.dotfiles";
+      QT_QPA_PLATFORM = "wayland";
+    };
+
+    home.sessionPath = [
+      "$HOME/.config/emacs/bin"
+    ];
+
+    imports = [
+      ./programs
+      ./languages
+      ./config
+      ./email.nix
+      ./defaultApps.nix
+      ./LSP.nix
+      # inputs.nixvim.homeManagerModules.nixvim
+    ];
+
+    home.packages = with pkgs; [
+      # runelite
+      helix
+      wowup-cf
+      # celeste
+      newsflash
+      fastfetch
+      libva-utils
+      vdpauinfo
+      nh
+      nix-output-monitor
+      # spotify
+      foliate
+      proton-pass
+      # rclone
+      protonmail-bridge
+      protonmail-bridge-gui
+      # fragments
+      discord
+      morewaita-icon-theme
+      yt-dlp
+      # amberol
+      brave
+      obsidian
+      # gimp
+      # parabolic
+      coppwr
+      bustle # Graphical D-Bus message analyser and profiler
+      # alpaca # Ollama client made with GTK4 and Adwaita
+      davinci-resolve
+      krita
+      libreoffice-qt6-fresh
+      eartag
+      toipe
+      fractal
+      # quarto
+      easyeffects
+      pwvucontrol
+      helvum
+      # ferdium
+      (
+        ferdium.overrideAttrs (newAttrs: oldAttrs: { 
+          src = fetchurl {
+            url = "https://github.com/ferdium/ferdium-app/releases/download/v6.7.7/Ferdium-linux-6.7.7-amd64.deb";
+            hash="sha256-5OW10sABNNYQNUgorM634j5oiBhJJby1ymH6UcmknRg=";
+          };
+          nativeBuildInputs = oldAttrs.nativeBuildInputs ++ [ pkgs.wrapGAppsHook4 ];
+        })
+      )
+      bottles
+      iosevka
+    ];
+
+    home.shellAliases = {
+      y = "yazi";
+    };
+#+end_src
+
+
+** Croggers
+*** Poggercroggers
+
+* EOF
+
+#+begin_src nix :tangle flake.nix
           };
         };
   }
 #+end_src
 
+#+begin_src nix :tangle NixOS/configuration.nix
+  # ⚠️ Don't Touch ⚠️ RTFM!
+  system.stateVersion = "24.05"; # Did you read the comment?
+  }
+#+end_src
 
-* Systems
-** Thinkpad Z13 Gen2
+#+begin_src nix :tangle NixOS/home.nix
+  # ⚠️ Don't Touch ⚠️ RTFM!
+  home.stateVersion = "24.05";
+  }
+#+end_src
